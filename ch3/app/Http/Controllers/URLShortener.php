@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Url;
 use App\Jobs\CrawlWeb;
+use App\Utils\CodeGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
@@ -22,28 +23,20 @@ class URLShortener extends Controller
 				->json(['status' => false, 'errors' => $validator->errors()]);
 		}
 
-		// shortening algo
-		do{
-			$shorterUrl = substr(md5(uniqid(rand(), true)),0,6);
-		} while(Url::where('key', $shorterUrl)->count() > 0);
-
-		// Loop while key exist
-		if( Url::where('key', $shorterUrl)->count() > 0){
-			$shorterUrl = substr(md5(uniqid(rand(), true)),0,6);
-		}
-
-		// store url
+		// store url to get id
 		$url = new Url();
 		$url->url = $request->url;
-		$url->key = $shorterUrl;
-		// $url->title = '';
+		$url->save();
+
+		// update key with shortcode
+		$url->key = CodeGenerator::getCode($url->id);
 		$url->save();
 
 		// dispatch job to crawl and fetch title
 		dispatch(new CrawlWeb($url));
 
 		return response()
-			->json(['status'=>true, 'url' => url($shorterUrl)]);
+			->json(['status'=>true, 'url' => url($url->key)]);
 
 	}
 }
